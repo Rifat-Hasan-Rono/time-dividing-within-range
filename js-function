@@ -1,0 +1,84 @@
+        var start = '';
+        var end = '';
+        var schedule = '';
+        var slot = '';
+
+        function check_date_availability(date) {
+            var _token = "{{csrf_token()}}";
+            var doctor_id = $('#doctor_id').val();
+            if (doctor_id) {
+                $("#doctor_error").html('');
+                $.ajax({
+                    url: "{{url('/check-date')}}",
+                    type: 'POST',
+                    data: {
+                        doctor_id: doctor_id,
+                        date: date,
+                        _token: _token
+                    },
+                    success: function(data) {
+                        if (data.success) {
+                            $('#date_msg').html("<b class='text-success'>" + data.success.msg + "</b>");
+                            $('#available_time').html("<b class='text-success'>" + data.success.time + "</b>");
+                            $(".time-section").show();
+                            $(".fee-section").show();
+                            start = data.success.start;
+                            end = data.success.end;
+                            slot = data.success.slot;
+                            schedule = data.success.time;
+                            var moment_start = moment(start, "h:mm A").format('HH:mm');
+                            var moment_end = moment(end, "h:mm A").format('HH:mm');
+
+                            var start_time = moment.utc(moment_start, "HH:mm");
+                            var end_time = moment.utc(moment_end, "HH:mm");
+
+                            var d = moment.duration(end_time.diff(start_time));
+                            var total_minute = (d._data.hours * 60) + d._data.minutes;
+                            per_patient = (total_minute / slot);
+
+                            var a = moment_start.split(':');
+                            var start_minutes = (+a[0]) * 60 + (+a[1]);
+
+                            var b = moment_end.split(':');
+                            var end_minutes = (+b[0]) * 60 + (+b[1]);
+
+                            var x = 5; //minutes interval
+                            var times = []; // time array
+                            var tt = start_minutes; // start time
+                            var ap = ['AM', 'PM']; // AM-PM
+
+                            for (var i = 0; tt < end_minutes; i++) {
+                                var hh = Math.floor(tt / 60); // getting hours of day in 0-24 format
+                                var mm = (tt % 60); // getting minutes of the hour in 0-55 format
+                                times[i] = ("0" + (hh % 12)).slice(-2) + ':' + ("0" + mm).slice(-2) + ' ' + ap[Math.floor(hh / 12)]; // pushing data in array in [00:00 - 12:00 AM/PM format]
+                                tt = tt + per_patient;
+                            }
+                            $('.select-time').empty();
+                            for (i = 0; i < times.length; i++) {
+                                if (jQuery.inArray(times[i], data.success.time_array) == -1) {
+                                    $('.select-time').append('<option>' + times[i] + '</option>')
+                                }
+                            }
+                            if ($('#booking_fee').val() != '') {
+                                $(".payment-section").show();
+                            } else {
+                                $(".btn-submit").prop('disabled', false);
+                            }
+                        } else {
+                            $('#date_msg').html("<b class='text-danger'>" + data.error.msg + "</b>");
+                            $(".time-section").hide();
+                            $(".fee-section").hide();
+                            $(".payment-section").hide();
+                        }
+                    },
+                    error: function(data) {
+                        $(".time-section").hide();
+                        $(".fee-section").hide();
+                        $(".payment-section").hide();
+                    }
+                });
+            } else {
+                $("#doctor_error").html('<b>Please select a doctor.</b>');
+            }
+
+        }
